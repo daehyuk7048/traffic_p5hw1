@@ -2,29 +2,29 @@
 #include <PinChangeInterrupt.h>
 #include <TaskScheduler.h>
 
-#define RED_LED 9
-#define YELLOW_LED 10
-#define GREEN_LED 11
+// -------------------- 핀/상수 정의 --------------------
+#define RED_LED      9
+#define YELLOW_LED   10
+#define GREEN_LED    11
 
 #define BTN_EMERGENCY 6
-#define BTN_BLINK 7
-#define BTN_ONOFF 8
+#define BTN_BLINK     7
+#define BTN_ONOFF     8
 
 #define POTENTIOMETER A0  
 
 Scheduler runner;
 
-// 모드 상태 플래그
+// -------------------- 모드 상태 플래그 --------------------
 volatile bool isEmergency = false;
 volatile bool isBlinking  = false;
 volatile bool isOn        = true;
 
 volatile unsigned long lastButtonPress = 0;
 
-// 밝기 변수
-int brightness = 255;
+int brightness = 255; // 가변저항 밝기
 
-// ------------------------ 함수 선언 ------------------------
+// -------------------- 함수 선언 --------------------
 void ISR_Emergency();
 void ISR_Blinking();
 void ISR_OnOff();
@@ -35,16 +35,22 @@ void LedGreenOn();
 void ToggleGreenBlink();
 void LedYellowBlink();
 
-// --------------------------------------
-// TaskScheduler로 관리되는 태스크들
-// --------------------------------------
+void handleModeChange(String mode);   // p5.js "MODE: ~" 처리
+void restartTrafficLight();
+
+// -------------------- 새로 추가: 모드 해제 함수들 --------------------
+void disableEmergency();
+void disableBlink();
+void disableOff();
+
+// -------------------- TaskScheduler 태스크 --------------------
 Task taskRed(2000, TASK_FOREVER, &LedRedOn,      &runner, true);
 Task taskYellow(500, TASK_FOREVER, &LedYellowOn, &runner, false);
 Task taskGreen(2000, TASK_FOREVER, &LedGreenOn,  &runner, false);
 Task taskGreenBlink(166, TASK_FOREVER, &ToggleGreenBlink, &runner, false);
 Task taskYellowBlink(500, TASK_FOREVER, &LedYellowBlink,  &runner, false);
 
-// 밝기 측정
+// 가변저항 측정
 void updateBrightness() {
   int potValue = analogRead(POTENTIOMETER);
   int newBrightness = map(potValue, 0, 1023, 0, 255);
@@ -56,7 +62,7 @@ void updateBrightness() {
 }
 Task taskBrightnessUpdate(100, TASK_FOREVER, &updateBrightness, &runner, true);
 
-// 전체 LED 깜빡임 모드 태스크
+// 전체 LED 깜빡임
 Task taskBlink(500, TASK_FOREVER, []() {
   static bool state = false;
   state = !state;
@@ -65,8 +71,7 @@ Task taskBlink(500, TASK_FOREVER, []() {
   analogWrite(GREEN_LED,  state ? brightness : 0);
 }, &runner, false);
 
-
-// ------------------------ setup() ------------------------
+// -------------------- setup() --------------------
 void setup() {
   Serial.begin(115200);
 
@@ -89,14 +94,14 @@ void setup() {
   taskRed.enable();
 }
 
-// ------------------------ 기본 신호등 로직 ------------------------
+// -------------------- 기본 신호등 로직 --------------------
 void LedRedOn() {
   if (!isOn || isEmergency || isBlinking) return;
 
   Serial.println("STATE: RED_ON");
   analogWrite(RED_LED, brightness);
   analogWrite(YELLOW_LED, 0);
-  analogWrite(GREEN_LED, 0);
+  analogWrite(GREEN_LED,  0);
 
   taskRed.disable();
   taskYellow.enableDelayed(taskRed.getInterval());
@@ -106,9 +111,9 @@ void LedYellowOn() {
   if (!isOn || isEmergency || isBlinking) return;
 
   Serial.println("STATE: YELLOW_ON");
-  analogWrite(RED_LED, 0);
+  analogWrite(RED_LED,    0);
   analogWrite(YELLOW_LED, brightness);
-  analogWrite(GREEN_LED, 0);
+  analogWrite(GREEN_LED,  0);
 
   taskYellow.disable();
   taskGreen.enableDelayed(taskYellow.getInterval());
@@ -157,8 +162,7 @@ void LedYellowBlink() {
   taskRed.enableDelayed(taskYellowBlink.getInterval());
 }
 
-
-// ------------------------ 신호등 재시작 ------------------------
+// 신호등 재시작
 void restartTrafficLight() {
   Serial.println("STATE: RESET");
   runner.disableAll();
@@ -171,83 +175,77 @@ void restartTrafficLight() {
   taskBrightnessUpdate.enable(); // 밝기는 계속 체크
 }
 
-// ------------------------ (1) 하드웨어 버튼: 여기서 직접 토글 & STATE 출력 ------------------------
-void ISR_Emergency() {
-  if (millis() - lastButtonPress < 200) return;
-  lastButtonPress = millis();
-
-  // 직접 토글
-  isEmergency = !isEmergency;
-
+// -------------------- (A) 모드 해제 함수들 --------------------
+void disableEmergency() {
   if (isEmergency) {
-    // 긴급 ON
-    Serial.println("STATE: EMERGENCY");
-    runner.disableAll();
-    taskBrightnessUpdate.enable();
-    analogWrite(RED_LED, brightness);
-    analogWrite(YELLOW_LED, 0);
-    analogWrite(GREEN_LED,  0);
-  } else {
+    isEmergency = false;
     // 긴급 OFF
     runner.enableAll();
     restartTrafficLight();
+    Serial.println("STATE: EMERGENCY_OFF");
   }
 }
 
-void ISR_Blinking() {
-  if (millis() - lastButtonPress < 200) return;
-  lastButtonPress = millis();
-
-  // 직접 토글
-  isBlinking = !isBlinking;
-
+void disableBlink() {
   if (isBlinking) {
-    // 깜빡이 ON
-    Serial.println("STATE: BLINK_ON");
-    runner.disableAll();
-    taskBrightnessUpdate.enable();
-    taskBlink.enable();
-  } else {
-    // 깜빡이 OFF
-    Serial.println("STATE: BLINK_OFF");
+    isBlinking = false;
     taskBlink.disable();
     runner.enableAll();
     restartTrafficLight();
+    Serial.println("STATE: BLINK_OFF");
   }
 }
 
-void ISR_OnOff() {
-  if (millis() - lastButtonPress < 200) return;
-  lastButtonPress = millis();
-
-  // 직접 토글
-  isOn = !isOn;
-
+void disableOff() {
+  // 현재 OFF면 isOn==false
   if (!isOn) {
-    // OFF
-    Serial.println("STATE: TRAFFIC_OFF");
-    runner.disableAll();
-    analogWrite(RED_LED,    0);
-    analogWrite(YELLOW_LED, 0);
-    analogWrite(GREEN_LED,  0);
-  } else {
-    // ON
+    isOn = true;
     Serial.println("STATE: TRAFFIC_ON");
     runner.enableAll();
     restartTrafficLight();
   }
 }
 
+// -------------------- (B) 하드웨어 버튼 ISR --------------------
+void ISR_Emergency() {
+  if (millis() - lastButtonPress < 200) return;
+  lastButtonPress = millis();
 
-// ------------------------ (2) p5.js 쪽 "MODE: ..." 명령 처리: 여기서만 토글 ------------------------
+  // "긴급" 모드 요청
+  handleModeChange("EMERGENCY");
+}
+
+void ISR_Blinking() {
+  if (millis() - lastButtonPress < 200) return;
+  lastButtonPress = millis();
+
+  // "깜빡이" 모드 요청
+  handleModeChange("BLINK");
+}
+
+void ISR_OnOff() {
+  if (millis() - lastButtonPress < 200) return;
+  lastButtonPress = millis();
+
+  // "ONOFF" 모드 요청
+  handleModeChange("ONOFF");
+}
+
+// -------------------- (C) p5.js가 보낸 MODE: ... 처리 --------------------
 void handleModeChange(String mode) {
-  Serial.print("🚦 모드 변경 (p5): ");
+  Serial.print("🚦 모드 요청: ");
   Serial.println(mode);
 
   if (mode == "EMERGENCY") {
-    // p5에서 EMERGENCY 버튼 눌렀을 때 토글
+    // 1) 깜빡이 중이라면 해제
+    disableBlink();
+    // 2) OFF 중이라면 ON으로
+    disableOff();
+    // 3) 긴급 토글
     isEmergency = !isEmergency;
+
     if (isEmergency) {
+      // ON
       Serial.println("STATE: EMERGENCY");
       runner.disableAll();
       taskBrightnessUpdate.enable();
@@ -255,35 +253,53 @@ void handleModeChange(String mode) {
       analogWrite(YELLOW_LED, 0);
       analogWrite(GREEN_LED,  0);
     } else {
-      runner.enableAll();
-      restartTrafficLight();
+      // OFF
+      disableEmergency();
     }
   }
+  else if (mode == "NORMAL") {
+    // 기본 신호등 모드 (노멀)
+    Serial.println("STATE: NORMAL");
+    isEmergency = false;
+    isBlinking  = false;
+    isOn = true;
+    runner.enableAll();
+    restartTrafficLight();
+  }
   else if (mode == "BLINK") {
-    // 깜빡이 토글
+    // 1) 긴급 해제
+    disableEmergency();
+    // 2) OFF 해제
+    disableOff();
+    // 3) 깜빡이 토글
     isBlinking = !isBlinking;
+
     if (isBlinking) {
       Serial.println("STATE: BLINK_ON");
       runner.disableAll();
       taskBrightnessUpdate.enable();
       taskBlink.enable();
     } else {
-      Serial.println("STATE: BLINK_OFF");
-      taskBlink.disable();
-      runner.enableAll();
-      restartTrafficLight();
+      disableBlink();
     }
   }
   else if (mode == "ONOFF") {
-    // ON/OFF
+    // 1) 긴급 해제
+    disableEmergency();
+    // 2) 깜빡이 해제
+    disableBlink();
+    // 3) ON/OFF 토글
     isOn = !isOn;
+
     if (!isOn) {
+      // OFF
       Serial.println("STATE: TRAFFIC_OFF");
       runner.disableAll();
       analogWrite(RED_LED,    0);
       analogWrite(YELLOW_LED, 0);
       analogWrite(GREEN_LED,  0);
     } else {
+      // ON
       Serial.println("STATE: TRAFFIC_ON");
       runner.enableAll();
       restartTrafficLight();
@@ -291,13 +307,12 @@ void handleModeChange(String mode) {
   }
 }
 
-// ------------------------ 시리얼 명령 수신 ------------------------
+// -------------------- (D) 시리얼 수신 --------------------
 void checkSerialInput() {
   if (Serial.available()) {
     String command = Serial.readStringUntil('\n');
     command.trim();
 
-    // 디버깅 출력
     Serial.print("📥 명령 수신: ");
     Serial.println(command);
 
@@ -306,8 +321,8 @@ void checkSerialInput() {
       String mode = command.substring(6);
       handleModeChange(mode);
     }
-    // "TIME: XXX" 처리
     else if (command.startsWith("TIME: ")) {
+      // 기존 시간 변경 로직
       int spaceIndex = command.indexOf(' ', 6);
       if (spaceIndex != -1) {
         String color = command.substring(6, spaceIndex);
@@ -337,7 +352,7 @@ void checkSerialInput() {
   }
 }
 
-// ------------------------ loop() ------------------------
+// -------------------- (E) loop() --------------------
 void loop() {
   checkSerialInput();
   runner.execute();
