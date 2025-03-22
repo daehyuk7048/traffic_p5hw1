@@ -91,7 +91,7 @@ function draw() {
     if (hands.length > 0) {
       let hand = hands[0];
       
-      // --- (A) 게이지 선택: "새끼손가락만" 제스처로 선택 (기존 방식 유지)
+      // --- (A) 게이지 선택: "OK" 제스처로 선택
       if (!selectedSlider && !adjustingSlider) {
         if (isOkGesture(hand)) {
           let wristX = hand.landmarks[0][0];
@@ -256,7 +256,7 @@ function isOkGesture(hand, distanceThreshold = 30, tol = 10) {
     return middle && ring && pinky;
   }
   
-  
+  //주먹을 쥐면 게이지 내려감
   function isIndexDown(hand) {
     let wrist = hand.landmarks[0];
     let indexTip = hand.landmarks[8];
@@ -294,7 +294,7 @@ function isThumbExtended(hand) {
     return isThumbIndexExtended(hand) && (mtip[1] < mpip[1]);
   }
 
-  // “엄지+검지+중지+약지”가 모두 펴졌는지 판별
+  // “엄지+검지+중지+약지”가 모두 펴졌는지 판별(extendedCount===4)
 function isThumbIndexMiddleRingExtended(hand) {
     // 엄지 tip=4, pip=2 / 검지 tip=8, pip=6 / 중지 tip=12, pip=10 / 약지 tip=16, pip=14
     let ttip = hand.landmarks[4], tpip = hand.landmarks[2];
@@ -459,6 +459,9 @@ function updateTrafficLightForMode(mode) {
     } else if (mode === "ONOFF") {
         stopBlinkingMode(); // 🔥 깜빡임 정지 후 기존 신호 복구
         updateTrafficLight("off"); // 기본값: 빨간불 ON
+    } else if (mode === "NORMAL") {
+      stopBlinkingMode();       // 깜빡임 중이라면 정지
+      updateTrafficLight("red"); // 원하는 기본 색상 (빨간불 등)
     }
 }
 
