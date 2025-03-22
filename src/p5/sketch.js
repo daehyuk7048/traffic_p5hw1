@@ -295,7 +295,7 @@ function isThumbExtended(hand) {
   }
 
   // “엄지+검지+중지+약지”가 모두 펴졌는지 판별
-    function isThumbIndexMiddleRingExtended(hand) {
+function isThumbIndexMiddleRingExtended(hand) {
     // 엄지 tip=4, pip=2 / 검지 tip=8, pip=6 / 중지 tip=12, pip=10 / 약지 tip=16, pip=14
     let ttip = hand.landmarks[4], tpip = hand.landmarks[2];
     let itip = hand.landmarks[8], ipip = hand.landmarks[6];
