@@ -305,6 +305,7 @@ void handleModeChange(String mode) {
       restartTrafficLight();
     }
   }
+  //추가 코드 : p5 제스쳐를 통해서 노말모드를 구현하기 위해
   else if (mode == "NORMAL") {
     // 4) NORMAL → 기본 신호등
     Serial.println("STATE: NORMAL");

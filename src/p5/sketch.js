@@ -5,6 +5,7 @@ let serialBuffer = ""; // 📡 데이터 버퍼
 let greenIndicatorBlink = false; // 🟢 초록불 깜빡임 상태
 // UI 요소 캐싱
 let trafficStateElement, redIndicator, yellowIndicator, greenIndicator;
+//---------------------추가된 코드-------------------------
 //handpose
 let handpose;
 let video;
@@ -16,10 +17,12 @@ let selectedSlider = null;     // "RED", "YELLOW", "GREEN"
 let sliderSelectedTime = 0;      // millis() 기준 선택된 시점
 let adjustingSlider = false;     // 게이지 조정 모드 여부
 let lastAdjustmentTime = 0;      // 마지막 조정 시각
+//------------------------------------------------------------
 
 async function setup() {
     noCanvas();
 
+    //----------------------------추가된 코드---------------------
       // (1) p5.js 캔버스 생성
     let c = createCanvas(640, 480);
     c.parent("canvasContainer");
@@ -39,7 +42,7 @@ async function setup() {
     handposeModel.on("predict", (results) => {
         hands = results;
     });
-
+    //------------------------------------------------------------
     // ✅ UI 요소 가져오기
     noSmooth(); //optional
     let connectButton = select("#connectButton");
@@ -72,6 +75,9 @@ async function setup() {
 let serialPort = null; // ✅ 시리얼 포트를 저장하는 변수 추가
 let writer = null; // ✅ 시리얼 데이터 전송을 위한 writer 객체
 let blinkInterval = null; // 🔥 깜빡임 모드 setInterval() ID 저장 변수
+
+//-------------------------------------------------------------
+// -----------------------추가된 코드 ------------------------
 // ---------------------- p5.js draw ----------------------
 function draw() {
     background(220);
@@ -255,14 +261,6 @@ function isOkGesture(hand, distanceThreshold = 30, tol = 10) {
     
     return middle && ring && pinky;
   }
-  
-  //주먹을 쥐면 게이지 내려감
-  function isIndexDown(hand) {
-    let wrist = hand.landmarks[0];
-    let indexTip = hand.landmarks[8];
-    if (!wrist || !indexTip) return false;
-    return (indexTip[1] > wrist[1]);
-  }
   // “엄지 하나만” 펴진 상황인지 체크(extendedCount===1 이어야)
 function isThumbExtended(hand) {
     // thumb tip=4, pip=2
@@ -307,7 +305,8 @@ function isThumbIndexMiddleRingExtended(hand) {
             mtip[1] < mpip[1] &&
             rtip[1] < rpip[1]);
   }
-
+// ---------------- 위로 추가된 코드 --------------------------------------------------//
+// -----------------------------------------------------------------------------------//
 async function connectSerial() {
     try {
         serialPort = await navigator.serial.requestPort();
