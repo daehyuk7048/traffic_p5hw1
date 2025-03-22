@@ -15,6 +15,7 @@ https://youtu.be/dFlTSJlkcVM?si=lNSn_ZzyTAsNfrmc
 
 . main.cpp에 추가한 코드이며 4개 모드중 노말모드를 추가하기 위해서 넣었습니다.
 
+
 ![image](https://github.com/user-attachments/assets/2f7e79b3-fe59-43ca-a6ee-35c53dcd85e1)
 ![image](https://github.com/user-attachments/assets/aa4e8823-b8ec-4c73-9f49-60dc87c99326)
 
