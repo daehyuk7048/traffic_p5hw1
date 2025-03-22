@@ -413,6 +413,25 @@ function updateUI(data) {
             greenIndicatorBlink = false;
         } else if (state === "GREEN_BLINK") {
             blinkGreenLight(); // ✅ 초록불 깜빡임
+        } else if (state === "BLINK_ON") {
+          startBlinkingMode(); 
+        } else if (state === "BLINK_OFF") {
+          stopBlinkingMode();
+          // 깜빡임 모드 끈 후 기본 신호등(빨간)으로 돌리고 싶다면:
+          updateTrafficLight("red");
+        }
+        // 긴급 모드 ON/OFF도 추가 가능
+        else if (state === "EMERGENCY") {
+          stopBlinkingMode();
+          updateTrafficLight("red");
+        } else if (state === "EMERGENCY_OFF") {
+          stopBlinkingMode();
+          updateTrafficLight("red");
+        }
+        //off시 ui 반영
+        else if (state === "TRAFFIC_OFF") {
+          // UI에서 신호등 전부 끔
+          updateTrafficLight("off");
         }
          // ✅ "MODE: " 수신 → UI 버튼 반영
         else if (data.startsWith("MODE:")) {

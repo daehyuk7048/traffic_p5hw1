@@ -237,59 +237,58 @@ void handleModeChange(String mode) {
   Serial.println(mode);
 
   if (mode == "EMERGENCY") {
-    // 1) 깜빡이 중이라면 해제
-    disableBlink();
-    // 2) OFF 중이라면 ON으로
-    disableOff();
-    // 3) 긴급 토글
-    isEmergency = !isEmergency;
+    // 1) 긴급 모드 토글
+    bool wasEmergency = isEmergency;
+    isEmergency = !wasEmergency;
 
+    // 긴급 모드 ON 시에는 다른 모드 OFF
     if (isEmergency) {
-      // ON
+      isBlinking = false;
+      isOn       = true; // 신호등 켜진 상태
+      // 긴급 ON
       Serial.println("STATE: EMERGENCY");
       runner.disableAll();
-      taskBrightnessUpdate.enable();
+      taskBrightnessUpdate.enable(); // 밝기 태스크는 계속
       analogWrite(RED_LED, brightness);
       analogWrite(YELLOW_LED, 0);
       analogWrite(GREEN_LED,  0);
-    } else {
-      // OFF
-      disableEmergency();
+    }
+    else {
+      // 긴급 OFF → 기본 신호등 복귀
+      Serial.println("STATE: EMERGENCY_OFF");
+      runner.enableAll();
+      restartTrafficLight();
     }
   }
-  else if (mode == "NORMAL") {
-    // 기본 신호등 모드 (노멀)
-    Serial.println("STATE: NORMAL");
-    isEmergency = false;
-    isBlinking  = false;
-    isOn = true;
-    runner.enableAll();
-    restartTrafficLight();
-  }
   else if (mode == "BLINK") {
-    // 1) 긴급 해제
-    disableEmergency();
-    // 2) OFF 해제
-    disableOff();
-    // 3) 깜빡이 토글
-    isBlinking = !isBlinking;
+    // 2) 깜빡이 모드 토글
+    bool wasBlinking = isBlinking;
+    isBlinking = !wasBlinking;
 
     if (isBlinking) {
+      // 깜빡이 ON
+      isEmergency = false;
+      isOn        = true;
       Serial.println("STATE: BLINK_ON");
       runner.disableAll();
       taskBrightnessUpdate.enable();
       taskBlink.enable();
-    } else {
-      disableBlink();
+    }
+    else {
+      // 깜빡이 OFF
+      Serial.println("STATE: BLINK_OFF");
+      taskBlink.disable();
+      runner.enableAll();
+      restartTrafficLight();
     }
   }
   else if (mode == "ONOFF") {
-    // 1) 긴급 해제
-    disableEmergency();
-    // 2) 깜빡이 해제
-    disableBlink();
     // 3) ON/OFF 토글
-    isOn = !isOn;
+    bool wasOn = isOn;
+    isOn = !wasOn;
+    // ONOFF 누르면 긴급/깜빡이도 해제
+    isEmergency = false;
+    isBlinking  = false;
 
     if (!isOn) {
       // OFF
@@ -298,12 +297,22 @@ void handleModeChange(String mode) {
       analogWrite(RED_LED,    0);
       analogWrite(YELLOW_LED, 0);
       analogWrite(GREEN_LED,  0);
-    } else {
+    }
+    else {
       // ON
       Serial.println("STATE: TRAFFIC_ON");
       runner.enableAll();
       restartTrafficLight();
     }
+  }
+  else if (mode == "NORMAL") {
+    // 4) NORMAL → 기본 신호등
+    Serial.println("STATE: NORMAL");
+    isEmergency = false;
+    isBlinking  = false;
+    isOn        = true;
+    runner.enableAll();
+    restartTrafficLight();
   }
 }
 
